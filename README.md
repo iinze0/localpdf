@@ -1,9 +1,18 @@
 # LocalPDF
 
 > Free, open-source, privacy-first alternative to paid PDF tools.  
-> Merge, split, rotate, and extract — everything happens in your browser. No uploads. No accounts. No tracking.
+> Merge, split, and rotate — everything happens in your browser. No uploads. No accounts. No tracking.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Live](https://img.shields.io/badge/Live-iinze0.github.io/localpdf-22C55E?style=flat-square)](https://iinze0.github.io/localpdf/)
+
+---
+
+## Live Demo
+
+**[https://iinze0.github.io/localpdf/](https://iinze0.github.io/localpdf/)**
+
+*(Enable GitHub Pages once if the link 404s: repo Settings → Pages → Deploy from branch → main / root)*
 
 ---
 
@@ -23,12 +32,11 @@ All processing stays on your device.
 - Merge multiple PDFs
 - Split PDF into single pages
 - Rotate pages
-- Extract text (basic)
 - Download results instantly
 - Dark, clean interface
 - Zero backend
 
-## Use it
+## Use it locally
 
 Open `index.html` in any modern browser.
 
