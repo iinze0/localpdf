@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalPDF — Free Open-Source PDF Tools</title>
+<style>
+  :root {
+    --bg: #0F0F0F;
+    --card: #1A1A1A;
+    --text: #F5F0E6;
+    --muted: #A8A29E;
+    --accent: #22C55E;
+    --border: #2A2A2A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  .wrap { max-width: 800px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2rem; }
+  h1 { font-size: 2.4rem; font-weight: 600; letter-spacing: -0.03em; }
+  .sub { color: var(--muted); margin-top: 0.5rem; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .tool {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .tool:hover, .tool.active { border-color: var(--accent); }
+  .tool h3 { font-size: 1rem; margin-bottom: 0.3rem; }
+  .tool p { font-size: 0.8rem; color: var(--muted); }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    min-height: 200px;
+  }
+  input[type="file"] { margin: 1rem 0; }
+  button {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 0.7rem 1.2rem;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 0.5rem;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #status { margin-top: 1rem; color: var(--muted); font-size: 0.9rem; }
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>LocalPDF</h1>
+    <p class="sub">Free open-source alternative to paid PDF tools. Everything stays in your browser.</p>
+  </header>
+
+  <div class="tools">
+    <div class="tool active" data-mode="merge"><h3>Merge</h3><p>Combine PDFs</p></div>
+    <div class="tool" data-mode="split"><h3>Split</h3><p>One page per file</p></div>
+    <div class="tool" data-mode="rotate"><h3>Rotate</h3><p>Rotate all pages</p></div>
+  </div>
+
+  <div class="panel" id="panel">
+    <p>Select one or more PDF files</p>
+    <input type="file" id="files" accept="application/pdf" multiple>
+    <div style="margin-top:1rem">
+      <button id="run" disabled>Run</button>
+      <button id="clear">Clear</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <footer>Client-side only · No uploads · MIT License</footer>
+</div>
+
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script>
+const { PDFDocument, degrees } = PDFLib;
+let mode = 'merge';
+const filesInput = document.getElementById('files');
+const runBtn = document.getElementById('run');
+const status = document.getElementById('status');
+const tools = document.querySelectorAll('.tool');
+
+tools.forEach(t => {
+  t.addEventListener('click', () => {
+    tools.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    mode = t.dataset.mode;
+    status.textContent = '';
+  });
+});
+
+filesInput.addEventListener('change', () => {
+  runBtn.disabled = filesInput.files.length === 0;
+});
+
+document.getElementById('clear').addEventListener('click', () => {
+  filesInput.value = '';
+  runBtn.disabled = true;
+  status.textContent = '';
+});
+
+runBtn.addEventListener('click', async () => {
+  const files = Array.from(filesInput.files);
+  if (!files.length) return;
+  status.textContent = 'Processing…';
+  runBtn.disabled = true;
+
+  try {
+    if (mode === 'merge') {
+      const merged = await PDFDocument.create();
+      for (const file of files) {
+        const bytes = await file.arrayBuffer();
+        const pdf = await PDFDocument.load(bytes);
+        const pages = await merged.copyPages(pdf, pdf.getPageIndices());
+        pages.forEach(p => merged.addPage(p));
+      }
+      const out = await merged.save();
+      download(out, 'merged.pdf');
+      status.textContent = 'Merged PDF downloaded.';
+    } else if (mode === 'split') {
+      const file = files[0];
+      const bytes = await file.arrayBuffer();
+      const pdf = await PDFDocument.load(bytes);
+      for (let i = 0; i < pdf.getPageCount(); i++) {
+        const single = await PDFDocument.create();
+        const [page] = await single.copyPages(pdf, [i]);
+        single.addPage(page);
+        const out = await single.save();
+        download(out, `page-${i + 1}.pdf`);
+      }
+      status.textContent = `Split into ${pdf.getPageCount()} files.`;
+    } else if (mode === 'rotate') {
+      const file = files[0];
+      const bytes = await file.arrayBuffer();
+      const pdf = await PDFDocument.load(bytes);
+      pdf.getPages().forEach(page => page.setRotation(degrees(90)));
+      const out = await pdf.save();
+      download(out, 'rotated.pdf');
+      status.textContent = 'Rotated PDF downloaded.';
+    }
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+  }
+  runBtn.disabled = false;
+});
+
+function download(bytes, name) {
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
